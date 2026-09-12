@@ -1,0 +1,5 @@
+model,n_games,mae,rmse,ats_win_rate,ats_eligible_games,mean_model_edge_vs_close
+Elo (HFA-adj),1359,13.378,17.2,0.4857,1359,0.286
+EPA,1359,12.761,16.254,0.5202,1359,-1.534
+DVOA,1199,16.309,20.725,0.4996,1199,-1.612
+BLENDED,1359,13.598,17.479,0.4974,1359,0.263

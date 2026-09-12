@@ -1,0 +1,31 @@
+# Copy this file to config.yaml and fill in your keys.
+# config.yaml is gitignored — never commit real API keys.
+
+sportsdataio:
+  api_key: "YOUR_KEY_HERE"
+  base_url: "https://api.sportsdata.io/v3/nfl"
+  # SportsDataIO endpoints of interest:
+  #   /scores/json/Injuries/{season}
+  #   /odds/json/GameOddsByWeek/{season}/{week}
+  #   /scores/json/PlayerGameStatsByWeek/{season}/{week}   (backup QB / snap counts)
+  #   /scores/json/ScoresByWeek/{season}/{week}
+
+backtest:
+  seasons: [2021, 2022, 2023, 2024, 2025]   # last 5 completed seasons
+  walk_forward: true
+  min_games_for_rating: 4      # don't trust a team rating until it has 4 games of current-season data
+
+model:
+  home_field_advantage_pts: 1.8   # starting prior; recalibrate from backtest residuals
+  rating_blend:
+    elo_weight: 0.4
+    epa_weight: 0.6
+  rolling_window_games: 8         # weight last 8 games more heavily than season-to-date
+  qb_adjustment:
+    enabled: true
+    max_shift_pts: 7.0             # cap on how much a QB change can move the line
+
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  cache_dir: "data/cache"

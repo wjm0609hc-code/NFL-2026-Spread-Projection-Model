@@ -1,0 +1,4 @@
+model,n_games,mae,rmse,ats_win_rate,ats_eligible_games,mean_model_edge_vs_close
+Elo,1359,13.504,17.401,0.4798,1359,1.086
+EPA,1359,12.761,16.254,0.5202,1359,-1.534
+DVOA,1199,16.309,20.725,0.4996,1199,-1.612

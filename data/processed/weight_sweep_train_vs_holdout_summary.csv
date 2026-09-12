@@ -1,0 +1,5 @@
+segment,model,n_games,mae,rmse,ats_win_rate,ats_eligible_games,mean_model_edge_vs_close,w_elo,w_epa,w_dvoa
+train (weights fit here),EPA alone,815.0,12.897,16.405,0.5215,815.0,0.205,0.0,1.0,0.0
+train (weights fit here),Blended (best train weights),815.0,12.672,16.215,0.5276,815.0,0.21,0.3,0.7,0.0
+test (untouched holdout),EPA alone,544.0,13.131,16.853,0.5018,544.0,0.357,,,
+test (untouched holdout),"Blended (same weights, out-of-sample)",544.0,13.109,16.86,0.4963,544.0,0.364,,,
