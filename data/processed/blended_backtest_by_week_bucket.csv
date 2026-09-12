@@ -1,0 +1,3 @@
+week_bucket,n_games,mae,rmse,ats_win_rate,ats_eligible_games,mean_model_edge_vs_close
+Wk 1-4 (early),320,12.809,16.733,0.4812,320,0.336
+Wk 5+ (established),1039,13.841,17.702,0.5024,1039,0.24
