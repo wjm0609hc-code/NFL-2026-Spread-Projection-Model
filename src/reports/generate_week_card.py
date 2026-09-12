@@ -22,6 +22,17 @@ that call fails (e.g. network policy blocks the host, or the week has no
 odds posted yet), this falls back to the market spread already bundled in
 the nflverse schedule data, clearly labeled as a fallback -- never fabricated.
 
+The raw model spread is shrunk toward the market line via
+src/models/spread_calibration.py before it's used for anything magnitude-
+sensitive (cover probability, edge %) -- see that module's docstring for the
+backtest verification behind this and, importantly, what it does NOT prove
+(shrinking toward market preserves this repo's ATS metric exactly, but does
+NOT improve MAE/RMSE against actual margins, and pushes edge % toward ~0 for
+most games by construction). The card shows raw, calibrated, and market
+spread side by side, plus a separate "lean" column carrying the RAW model's
+side -- direction only, not a magnitude or confidence claim -- since that's
+where this repo's thin (~53.6% ATS) validated signal actually lives.
+
 Usage:
     python -m src.reports.generate_week_card --season 2026 --week 1
 """
@@ -46,6 +57,7 @@ from src.features.turnover_luck import (
 from src.ingestion.live_odds import best_price_per_side, get_live_odds
 from src.ingestion.sportsdataio_client import SportsDataIOClient
 from src.models.monte_carlo import DEFAULT_MARGIN_SIGMA, T_DIST_DOF, classify_edge, edge_pct
+from src.models.spread_calibration import calibrate_final_spread
 from src.models.spread_projection import build_epa_spread
 
 LOOKBACK_SEASONS = [2021, 2022, 2023, 2024, 2025]
@@ -220,9 +232,7 @@ def build_week_card(season: int, week: int) -> None:
     result["rest_adjustment_pts"] = result["rest_adjustment_pts"].fillna(0.0)
 
     # current adopted model, per docs/CHANGELOG.md "Current model": EPA + turnover luck + rest
-    result["model_spread"] = result["epa_spread"] - result["home_to_adj"] + result["away_to_adj"] - result["rest_adjustment_pts"]
-    # monte_carlo.py convention: projected_margin positive = home favored (opposite of model_spread's sign)
-    result["projected_margin_home"] = -result["model_spread"]
+    result["raw_model_spread"] = result["epa_spread"] - result["home_to_adj"] + result["away_to_adj"] - result["rest_adjustment_pts"]
 
     print("\nAttempting live odds from SportsDataIO...")
     live_odds_df = None
@@ -249,16 +259,24 @@ def build_week_card(season: int, week: int) -> None:
         result["market_spread_standard"] = result["spread_line_standard"]
         market_source = "nflverse bundled spread_line (FALLBACK -- not a live SportsDataIO pull; see note above)"
 
+    # Calibration needs a market number to shrink toward -- only defined where one exists.
+    result["calibrated_spread"] = calibrate_final_spread(result["raw_model_spread"], result["market_spread_standard"])
+    # monte_carlo.py convention: projected_margin positive = home favored (opposite of spread's sign).
+    # Everything magnitude-sensitive (cover probability, edge %) uses the CALIBRATED spread, never raw.
+    result["projected_margin_home"] = -result["calibrated_spread"]
+
     print("\n" + "=" * 72)
     print(f"WEEK CARD -- Season {season}, Week {week}")
     print(f"Market source: {market_source}")
-    print("Model: EPA + turnover-luck + rest (current adopted model per docs/CHANGELOG.md)")
+    print("Model: EPA + turnover-luck + rest (current adopted model per docs/CHANGELOG.md),")
+    print("calibrated toward market via src/models/spread_calibration.py (k=0.0342) before pricing.")
     print("No totals model exists yet in this repo -- spread only, no over/under.")
     print("=" * 72)
 
     for _, g in result.sort_values("gameday").iterrows():
         home, away = g["home_team"], g["away_team"]
-        model_spread = g["model_spread"]
+        raw_spread = g["raw_model_spread"]
+        calibrated_spread = g["calibrated_spread"]
         market_spread = g["market_spread_standard"]
 
         cover_prob = None
@@ -268,9 +286,14 @@ def build_week_card(season: int, week: int) -> None:
             edge = edge_pct(cover_prob, -110)
 
         print(f"\n{away} @ {home}  ({g['gameday']})")
-        print(f"  Model:  {describe_favorite(model_spread, home, away):<28} (home-perspective spread: {model_spread:+.1f})")
+        print(f"  Lean: {describe_favorite(raw_spread, home, away)}  (direction only, from the raw model -- not a magnitude/confidence claim)")
+        print(f"  Raw model:   {describe_favorite(raw_spread, home, away):<28} (home-perspective spread: {raw_spread:+.1f})")
+        if pd.notna(calibrated_spread):
+            print(
+                f"  Calibrated:  {describe_favorite(calibrated_spread, home, away):<28} (home-perspective spread: {calibrated_spread:+.1f})"
+            )
         if pd.notna(market_spread):
-            print(f"  Market: {describe_favorite(market_spread, home, away):<28} (home-perspective spread: {market_spread:+.1f})")
+            print(f"  Market:      {describe_favorite(market_spread, home, away):<28} (home-perspective spread: {market_spread:+.1f})")
             print(f"  P({home} covers market line) = {cover_prob:.1%}   Edge vs -110 juice: {edge:+.1%} ({classify_edge(edge)})")
         else:
             print("  Market: no line available")
